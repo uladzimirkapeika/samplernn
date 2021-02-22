@@ -1,6 +1,7 @@
 from os import walk
 import os
 import sys
+
 try:
         link = sys.argv[1]
 except IndexError:
@@ -12,7 +13,7 @@ except IndexError:
 # Previous versions of youtube-dl can be slow for downloading audio.
 # Make sure you have downloaded the latest version from webpage.
 # https://github.com/rg3/youtube-dl
-mypath = "/Users/markyramone/Data_Science/metis/metisgh/projects_loc/Kojak/datasets/fennesz/"
+mypath = "/content/"
 os.chdir(mypath)
 os.system("youtube-dl --extract-audio " + link)
 
@@ -22,11 +23,12 @@ f = []
 for (dirpath, dirnames, filenames) in walk(mypath):
     f.extend(filenames)
     break
+
 for i in range(0, len(f)):
-        if ".opus" in f[i] and vidID in f[i]:
-                vidName = f[i]
-                print(vidName)
-                cmdstr = "ffmpeg -i \"" + vidName + "\" -f wav -flags bitexact -ar 16000 \"" + vidName[:-5] + ".wav"  + "\""
-                print(cmdstr)
-                os.system(cmdstr)
-                os.remove(vidName) #Will remove original opus file. Comment it if you want to keep that file.
+    if ".opus" in f[i] and vidID in f[i]:
+        vidName = f[i]
+        print(vidName)
+        cmdstr = "ffmpeg -i \"" + vidName + "\" -f wav -flags bitexact -ar 16000 \"" + vidName[:-5] + ".wav"  + "\""
+        print(cmdstr)
+        os.system(cmdstr)
+        os.remove(vidName) #Will remove original opus file. Comment it if you want to keep that file.

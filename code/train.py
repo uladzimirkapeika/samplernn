@@ -18,12 +18,6 @@ import numpy as np
 import datetime
 import time
 
-
-
-# dropout probability
-
-
-
 default_params = {
     # model parameters
     'n_rnn': 3,
@@ -149,6 +143,7 @@ def tee_stdout(log_path):
             stdout.flush()
 
     sys.stdout = Tee()
+
 
 def make_data_loader(overlap_len, params):
     path = os.path.join(params['datasets_path'], params['dataset'])
