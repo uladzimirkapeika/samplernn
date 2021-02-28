@@ -51,6 +51,7 @@ tag_params = [
     'batch_size', 'dataset', 'val_frac', 'test_frac', 'dropout', 'lr', 'sample_rate'
 ]
 
+
 def param_to_string(value):
     if isinstance(value, bool):
         return 'T' if value else 'F'
@@ -59,12 +60,14 @@ def param_to_string(value):
     else:
         return str(value)
 
+
 def make_tag(params):
     return '-'.join(
         key + ':' + param_to_string(params[key])
         for key in tag_params
         if key not in default_params or params[key] != default_params[key]
     )
+
 
 def setup_results_dir(params):
     def ensure_dir_exists(path):
@@ -85,6 +88,7 @@ def setup_results_dir(params):
         ensure_dir_exists(os.path.join(results_path, subdir))
 
     return results_path
+
 
 def load_last_checkpoint(checkpoints_path, params):
     if 'load_model' in params:
@@ -128,6 +132,7 @@ def load_last_checkpoint(checkpoints_path, params):
     else:
         return None
 
+
 def tee_stdout(log_path):
     log_file = open(log_path, 'a', 1)
     stdout = sys.stdout
@@ -147,6 +152,7 @@ def tee_stdout(log_path):
 
 def make_data_loader(overlap_len, params):
     path = os.path.join(params['datasets_path'], params['dataset'])
+
     def data_loader(split_from, split_to, eval):
         dataset = FolderDataset(
             path, overlap_len, params['q_levels'], split_from, split_to
@@ -162,35 +168,27 @@ def make_data_loader(overlap_len, params):
     return data_loader
 
 
+def generate_sample(generator, params, writer, global_step, results_path, e,
+                    path='/content/drive/MyDrive/Audio Style Transfer/Caretaker/'):
+    # generator: epoch
+    pattern = 'ep{}-s{}.wav'
+    samples = generator(params['n_samples'], params['sample_length']).cpu().float().numpy()
 
+    norm_samples = ((samples[:] - samples[:].min()) / (0.00001 + (samples[:].max() - samples[:].min()))) * 1.9 - 0.95
 
-def generate_sample(generator, params, writer, global_step, results_path, e):
-            # generator: epoch
-            pattern = 'ep{}-s{}.wav'
-            samples = generator(params['n_samples'], params['sample_length']) \
-                        .cpu().float().numpy()
+    if writer is not None:
+        writer.add_scalar('validation/sample average', np.mean(samples), global_step)
+        writer.add_scalar('validation/sample min', samples.min(), global_step)
+        writer.add_scalar('validation/sample max', samples.max(), global_step)
 
-            norm_samples = ((samples[:] - samples[:].min()) / (0.00001 + (samples[:].max() - samples[:].min()))) * 1.9 - 0.95
-
-            if writer is not None:
-                writer.add_scalar('validation/sample average', np.mean(samples), global_step)
-                writer.add_scalar('validation/sample min', samples.min(), global_step)
-                writer.add_scalar('validation/sample max', samples.max(), global_step)
-
-            start = time.time()
-            for i in range(params['n_samples']):
-                if writer is not None:
-                    writer.add_audio('validation/sound{}'.format(i), norm_samples[i], global_step, sample_rate=params['sample_rate'])
-                write_wav(
-                    os.path.join(
-                    os.path.join(results_path, 'samples'), pattern.format(e, i + 1)
-                    ),
+    start = time.time()
+    for i in range(params['n_samples']):
+        if writer is not None:
+            writer.add_audio('validation/sound{}'.format(i), norm_samples[i], global_step, sample_rate=params['sample_rate'])
+            write_wav(os.path.join(path, 'samples'), pattern.format(e, i + 1),
                     samples[i, :], sr=params['sample_rate'], norm=True
                 )
-            avg_time = time.time() - start
-
-            print("== Generated {} Samples ==".format(params['n_samples']))
-
+    print("== Generated {} Samples ==".format(params['n_samples']))
 
 
 def main(exp, frame_sizes, dataset, **params):
@@ -239,7 +237,6 @@ def main(exp, frame_sizes, dataset, **params):
         start_epoch = 0
         global_step = 0
 
-
     #writer = SummaryWriter("runs/{}-{}".format(params['dataset'], str(datetime.datetime.now()).split('.')[0].replace(' ', '-')))
     writer = SummaryWriter(os.path.join(results_path, "{}-{}".format(params['dataset'], str(datetime.datetime.now()).split('.')[0].replace(' ', '-'))))
     dataset_train = data_loader(0, val_split, eval=False)
@@ -287,12 +284,8 @@ def main(exp, frame_sizes, dataset, **params):
 
             # stats: iteration
             writer.add_scalar('train/train loss', train_loss, global_step)
-            print("E:{:03d}-S{:05d}: Loss={}".format(e, i, train_loss))
+            #print("E:{:03d}-S{:05d}: Loss={}".format(e, i, train_loss))
             global_step += 1
-
-
-
-
 
         # validation: per epoch
         predictor.eval()
@@ -328,7 +321,6 @@ def main(exp, frame_sizes, dataset, **params):
 
         predictor.train()
 
-
         # saver: epoch
         last_pattern = 'ep{}-it{}'
         best_pattern = 'best-ep{}-it{}'
@@ -346,12 +338,11 @@ def main(exp, frame_sizes, dataset, **params):
             torch.save(predictor.state_dict(), os.path.join(checkpoints_path, best_pattern.format(e, global_step)))
             best_val_loss = cur_val_loss
 
-
         generate_sample(generator, params, writer, global_step, results_path, e)
 
-
-
     # generate final results
+    params['n_samples'] = 20,
+    params['sample_length'] = 100000,
     generate_sample(generator, params, None, global_step, results_path, 0)
 
 
